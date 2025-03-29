@@ -16,7 +16,7 @@ def renew(username, password):
         "--no-sandbox",
         "--disable-dev-shm-usage",
         "--remote-debugging-port=9222",
-        "--headless=new",  # New headless mode for better compatibility
+        "--headless=new",
         "--disable-gpu",
         "--window-size=1920,1200",
         "--ignore-certificate-errors",
@@ -26,7 +26,6 @@ def renew(username, password):
         chrome_options.add_argument(option)
 
     try:
-        # Initialize WebDriver
         print("Starting WebDriver...")
         driver = webdriver.Chrome(
             service=ChromiumService(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install()), 
@@ -36,7 +35,6 @@ def renew(username, password):
         # Open Login Page
         print("Navigating to license portal login page...")
         driver.get('https://licenseportal.it.chula.ac.th/')
-
         wait = WebDriverWait(driver, 10)
 
         # Enter Username
@@ -60,7 +58,7 @@ def renew(username, password):
 
         # Wait for Expiry Date Field
         expiry_date_input = wait.until(EC.presence_of_element_located((By.ID, 'ExpiryDateStr')))
-        
+
         # Set Expiry Date to 7 Days from Now
         week = datetime.now() + timedelta(days=7)
         driver.execute_script("arguments[0].value = arguments[1];", expiry_date_input, week.strftime('%d/%m/%Y'))
@@ -69,12 +67,24 @@ def renew(username, password):
         # Select Program License
         select_element = driver.find_element(By.ID, 'ProgramLicenseID')
         select = Select(select_element)
-        select.select_by_value('5')  # Ensure this value is correct
+        select.select_by_value('5')  
         print("Selected license.")
 
-        # Click Save Button
-        save_button = driver.find_element(By.XPATH, '//button[@type="submit"]')
-        save_button.click()
+        # Wait for loading screen to disappear
+        try:
+            wait.until(EC.invisibility_of_element_located((By.CLASS_NAME, 'loading')))
+            print("Loading screen disappeared.")
+        except:
+            print("No loading screen detected or it didn't disappear.")
+
+        # Click Save Button (Retry with JavaScript if necessary)
+        save_button = wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@type="submit"]')))
+        try:
+            save_button.click()
+        except Exception:
+            print("Click intercepted, using JavaScript to click button.")
+            driver.execute_script("arguments[0].click();", save_button)
+
         print("Clicked submit button.")
 
         print("Renewal process completed successfully.")
