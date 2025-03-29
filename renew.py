@@ -25,83 +25,41 @@ def renew(username, password):
     for option in options:
         chrome_options.add_argument(option)
 
-    try:
-        print("Starting WebDriver...")
-        driver = webdriver.Chrome(
-            service=ChromiumService(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install()), 
-            options=chrome_options
-        )
+    driver = webdriver.Chrome(
+        service=ChromiumService(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install()), 
+        options=chrome_options
+    )
 
-        # Open Login Page
-        print("Navigating to license portal login page...")
-        driver.get('https://licenseportal.it.chula.ac.th/')
-        wait = WebDriverWait(driver, 10)
+    driver.get('https://licenseportal.it.chula.ac.th/')
+    wait = WebDriverWait(driver, 10)
 
-        # Enter Username
-        username_input = wait.until(EC.presence_of_element_located((By.ID, 'UserName')))
-        username_input.send_keys(username)
-        print("Entered username.")
+    username_input = wait.until(EC.presence_of_element_located((By.ID, 'UserName')))
+    username_input.send_keys(username)
 
-        # Enter Password
-        password_input = driver.find_element(By.ID, 'Password')
-        password_input.send_keys(password)
-        print("Entered password.")
+    password_input = driver.find_element(By.ID, 'Password')
+    password_input.send_keys(password)
 
-        # Click Sign-in Button
-        signin_button = driver.find_element(By.XPATH, '//button')
-        signin_button.click()
-        print("Clicked login button.")
+    signin_button = driver.find_element(By.XPATH, '//button')
+    signin_button.click()
 
-        # Navigate to Borrow Page
-        driver.get('https://licenseportal.it.chula.ac.th/Home/Borrow')
-        print("Navigated to Borrow page.")
+    driver.get('https://licenseportal.it.chula.ac.th/Home/Borrow')
 
-        # Wait for Expiry Date Field
-        expiry_date_input = wait.until(EC.presence_of_element_located((By.ID, 'ExpiryDateStr')))
+    expiry_date_input = wait.until(EC.presence_of_element_located((By.ID, 'ExpiryDateStr')))
+    week = datetime.now() + timedelta(days=7)
+    driver.execute_script("arguments[0].value = arguments[1];", expiry_date_input, week.strftime('%d/%m/%Y'))
 
-        # Set Expiry Date to 7 Days from Now
-        week = datetime.now() + timedelta(days=7)
-        driver.execute_script("arguments[0].value = arguments[1];", expiry_date_input, week.strftime('%d/%m/%Y'))
-        print(f"Set expiry date to {week.strftime('%d/%m/%Y')}.")
+    select_element = driver.find_element(By.ID, 'ProgramLicenseID')
+    Select(select_element).select_by_value('5')
 
-        # Select Program License
-        select_element = driver.find_element(By.ID, 'ProgramLicenseID')
-        select = Select(select_element)
-        select.select_by_value('5')  
-        print("Selected license.")
+    wait.until(EC.invisibility_of_element_located((By.CLASS_NAME, 'loading')))
 
-        # Wait for loading screen to disappear
-        try:
-            wait.until(EC.invisibility_of_element_located((By.CLASS_NAME, 'loading')))
-            print("Loading screen disappeared.")
-        except:
-            print("No loading screen detected or it didn't disappear.")
+    save_button = wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@type="submit"]')))
+    driver.execute_script("arguments[0].click();", save_button)
 
-        # Click Save Button (Retry with JavaScript if necessary)
-        save_button = wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@type="submit"]')))
-        try:
-            save_button.click()
-        except Exception:
-            print("Click intercepted, using JavaScript to click button.")
-            driver.execute_script("arguments[0].click();", save_button)
-
-        print("Clicked submit button.")
-
-        print("Renewal process completed successfully.")
-
-    except Exception as e:
-        print(f"Error occurred: {e}")
-    finally:
-        driver.quit()
-        print("Closed WebDriver.")
+    driver.quit()
 
     return True
 
-# Fetch credentials from environment variables
 USERNAME = os.getenv('USERNAME')
 PASSWORD = os.getenv('PASSWORD')
-
-if not USERNAME or not PASSWORD:
-    print("Error: USERNAME or PASSWORD environment variable is not set.")
-else:
-    renew(USERNAME, PASSWORD)
+renew(USERNAME, PASSWORD)
